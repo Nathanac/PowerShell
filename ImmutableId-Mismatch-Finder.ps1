@@ -1,9 +1,9 @@
-﻿################################################################################ 
-# SCRIPT TO GATHER ALL MISMATCHES BETWEEN IMMUTEABLEID AND MS-DS-CONSISTENCYGUID
-# CREATED BY NATE COX
-# 8/12/2019
-# THIS SCRIPT TAKES A VERY LONG TIME TO RUN IN A LARGE ENVIRONMENT
-################################################################################
+﻿################################################################################# 
+# SCRIPT TO GATHER ALL MISMATCHES BETWEEN IMMUTEABLEID AND MS-DS-CONSISTENCYGUID#
+# CREATED BY NATE COX															#
+# 8/12/2019																		#
+# THIS SCRIPT TAKES A VERY LONG TIME TO RUN IN A LARGE ENVIRONMENT				#
+#################################################################################
 
 ##Import AD, MSOL, and Azure
 Import-Module ActiveDirectory
@@ -19,7 +19,7 @@ Connect-AzureAD -Credential $cred
 
 
 #Gather all MSOL users and put into variable.  Stores to a file to use again if needed.
-Get-Msoluser -all | export-csv C:\Users\$ENV:USERNAME\Desktop\allmsol.csv
+Get-Msoluser -all | select userprincipalname| export-csv C:\Users\$ENV:USERNAME\Desktop\allmsol.csv -NoTypeInformation
 $all = import-csv C:\Users\$ENV:USERNAME\Desktop\allmsol.csv
 
 cls
@@ -68,6 +68,7 @@ function ConvertGUIDToII ($data)
 
 
 #Set up array to use and sets the stage for the progress bar
+$Output = $null
 $Output = @()
 $count = 0
 $TOTAL = $all.count
@@ -85,10 +86,10 @@ Foreach ($user in $all)
 	#Set variables
 	$MSOLUPN = $user.userprincipalname
 	$azurelink = (Get-AzureADUser -ObjectId $MSOLUPN).OnPremisesSecurityIdentifier
-	
+	$isdirsynced = (Get-AzureADUser -ObjectId $MSOLUPN).DirSyncEnabled
 	
 	#Correct for cloud-only accounts
-	If ($azurelink -eq $null -or $azurelink -like "") { $SAM = "Cloud-only account" }
+	If ($isdirsynced -like "False") { $SAM = "Cloud-only account" }
 	Else { $SAM = (Get-ADUser -Filter { SID -eq $azurelink }).samaccountname }
 	
 	#Gather Cloud Hex
@@ -123,3 +124,5 @@ Foreach ($user in $all)
 
 # Export to CSV for review
 $Output | Export-Csv C:\Users\$ENV:USERNAME\Desktop\Immute.csv -NoTypeInformation
+
+Finally {Clear-Variable * -ErrorAction SilentlyContinue}
